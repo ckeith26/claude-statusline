@@ -407,7 +407,8 @@ for p in glob.glob(os.path.join(reg, "*.json")):
     wt = d.get("worktree", "")
     if not wt or not os.path.isdir(wt):
         continue
-    cost += float(d.get("cost_usd") or 0)
+    # The registry record stays RUNNING after a PM finishes; the ledger STATUS is the
+    # authoritative one, which is what pm-status.sh reads. Check it before counting.
     lst = ""
     try:
         with open(os.path.join(wt, "LEDGER.md")) as f:
@@ -421,6 +422,9 @@ for p in glob.glob(os.path.join(reg, "*.json")):
                     break
     except Exception:
         pass
+    if lst in ("DONE", "STOPPED"):
+        continue
+    cost += float(d.get("cost_usd") or 0)
     if lst == "READY-FOR-HUMAN":
         needs += 1
     elif st == "CRASHED":

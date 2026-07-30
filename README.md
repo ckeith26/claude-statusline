@@ -34,6 +34,7 @@ sudo apt install jq    # Debian/Ubuntu
 - Model name with context window size
 - Project name with smart truncation for long names
 - Multi-terminal-safe cached API calls (60s TTL, atomic writes, lock-based deduplication)
+- Optional [nightshift](#nightshift) segment showing background agents, hidden unless any are running
 
 ## Layouts
 
@@ -62,6 +63,18 @@ Short project name, tiny model, color-coded percentages with dividers.
 Branch, model, and percentages with no dividers.
 
 ![Ultracompact layout](https://raw.githubusercontent.com/camkeith/claude-statusline/main/.github/screenshot-ultracompact.png)
+
+## Nightshift
+
+If a project runs nightshift background agents, the status line appends a segment summarizing them:
+
+```
+ns >2 $279.85     two agents working, spend so far
+ns !1 >1          one wants a decision, one working
+ns x1 >1 $4.20    one crashed, one working
+```
+
+Counts and spend cover only unfinished agents. The segment is skipped entirely when a project has none, so it stays invisible if you do not use nightshift. Nothing needs to be installed for this: the status line only reads files, and their absence is the normal case.
 
 ## Uninstall
 
