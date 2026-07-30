@@ -66,7 +66,7 @@ Branch, model, and percentages with no dividers.
 
 ## Nightshift
 
-If a project runs nightshift background agents, the status line appends a segment summarizing them:
+If a project runs [nightshift](https://github.com/camkeith/nightshift) background agents, the status line appends a segment summarizing them:
 
 ```
 ns >2 $279.85     two agents working, spend so far
