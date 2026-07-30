@@ -381,6 +381,64 @@ model_line_vis=$((${#project_name} + 2 + ${#git_branch} + 3 + ${#model_name} + 3
 full_model_vis=$((${#project_name} + 2 + ${#git_branch} + 3 + ${#model_full} + 3 + 10 + 1 + 4))
 full_line_vis=$full_model_vis
 
+# --- nightshift: running PMs (optional integration) ---
+# Renders nothing unless the repo has a nightshift registry with active PMs, so this is
+# invisible for everyone who does not use it. No dependency on nightshift being installed:
+# it only reads files, and their absence is the normal case.
+#   ns >2          two PMs working
+#   ns !1 >1       one wants a decision, one working
+#   ns x1 >1 $4.20 one crashed, one working, spend so far
+ns_segment() {
+  local reg="$1/.claude/worktrees/registry"
+  [ -d "$reg" ] || return 0
+  NS_REG="$reg" python3 -c '
+import glob, json, os, re
+reg = os.environ["NS_REG"]
+run = needs = dead = 0
+cost = 0.0
+for p in glob.glob(os.path.join(reg, "*.json")):
+    try:
+        d = json.load(open(p))
+    except Exception:
+        continue
+    st = (d.get("status") or "").upper()
+    if st in ("DONE", "STOPPED"):
+        continue
+    wt = d.get("worktree", "")
+    if not wt or not os.path.isdir(wt):
+        continue
+    cost += float(d.get("cost_usd") or 0)
+    lst = ""
+    try:
+        with open(os.path.join(wt, "LEDGER.md")) as f:
+            for _ in range(40):
+                line = f.readline()
+                if not line:
+                    break
+                m = re.match(r"^STATUS:\s*(\S+)", line)
+                if m:
+                    lst = m.group(1)
+                    break
+    except Exception:
+        pass
+    if lst == "READY-FOR-HUMAN":
+        needs += 1
+    elif st == "CRASHED":
+        dead += 1
+    else:
+        run += 1
+if not (run or needs or dead):
+    raise SystemExit
+p = []
+if needs: p.append("\033[38;2;238;212;159m!%d\033[0m" % needs)
+if dead:  p.append("\033[38;2;237;135;150mx%d\033[0m" % dead)
+if run:   p.append("\033[38;2;139;213;202m>%d\033[0m" % run)
+if cost:  p.append("\033[38;2;110;115;141m$%.2f\033[0m" % cost)
+print("\033[38;2;110;115;141mns\033[0m " + " ".join(p), end="")
+' 2>/dev/null || true
+}
+NS=$(ns_segment "$project_dir")
+
 if [ "$avail" -ge 88 ] && [ "$avail" -ge "$full_line_vis" ]; then
   # FULL: line 1 = project + branch + diffs + model + ctx gauge
   #       line 2 = c gauge + reset | w gauge + reset | ext
@@ -396,6 +454,7 @@ if [ "$avail" -ge 88 ] && [ "$avail" -ge "$full_line_vis" ]; then
   if [ "$extra_enabled" = "true" ]; then
     line2+="${sep}${C_MUTED}extra${R} $(bgauge "$extra_pct" 6 budget) ${C_MUTED}${extra_remaining} left${R}"
   fi
+  [ -n "$NS" ] && line1+="${sep}${NS}"
   printf '%b\n%b' "$line1" "$line2"
 
 elif [ "$avail" -ge 88 ] && [ "$avail" -ge "$model_line_vis" ]; then
@@ -413,6 +472,7 @@ elif [ "$avail" -ge 88 ] && [ "$avail" -ge "$model_line_vis" ]; then
   if [ "$extra_enabled" = "true" ]; then
     line2+="${sep}${C_MUTED}ext${R} $(bgauge "$extra_pct" 6 budget) ${C_MUTED}${extra_remaining} left${R}"
   fi
+  [ -n "$NS" ] && line1+="${sep}${NS}"
   printf '%b\n%b' "$line1" "$line2"
 
 elif [ "$avail" -ge 56 ]; then
@@ -428,6 +488,7 @@ elif [ "$avail" -ge 56 ]; then
   if [ "$extra_enabled" = "true" ]; then
     line2+="${sep}${C_MUTED}ext${R} $(bgauge "$extra_pct" 6 budget) ${C_MUTED}${extra_remaining} left${R}"
   fi
+  [ -n "$NS" ] && line1+="${sep}${NS}"
   printf '%b\n%b' "$line1" "$line2"
 
 elif [ "$avail" -ge 36 ]; then
@@ -438,6 +499,7 @@ elif [ "$avail" -ge 36 ]; then
   line+="${sep}$(cpct $ctx_pct context)"
   line+="${sep}${C_MUTED}c${R}$(cpct $current_pct budget)"
   line+="${sep}${C_MUTED}w${R}$(cpct $weekly_pct budget)"
+  [ -n "$NS" ] && line+=" ${NS}"
   printf '%b' "$line"
 
 else
@@ -448,6 +510,7 @@ else
   line+=" $(cpct $ctx_pct context)"
   line+=" ${C_MUTED}c${R}$(cpct $current_pct budget)"
   line+=" ${C_MUTED}w${R}$(cpct $weekly_pct budget)"
+  [ -n "$NS" ] && line+=" ${NS}"
   printf '%b' "$line"
 fi
 
