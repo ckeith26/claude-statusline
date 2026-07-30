@@ -1,6 +1,6 @@
 {
   "name": "@ckeith26/claude-statusline",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "A width-adaptive status line for Claude Code with Catppuccin Macchiato theme",
   "bin": {
     "claude-statusline": "./bin/install.js"
